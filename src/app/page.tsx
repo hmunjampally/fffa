@@ -13,10 +13,43 @@ interface Row {
   goal_difference: number;
 }
 
+interface SortState {
+  field: keyof Row | undefined;
+  direction: "ascending" | "descending";
+}
+
 export default function Page() {
   const [pointsData, setPointsData] = useState<Row[]>([]);
+  const [sortState, setSortState] = useState<SortState>({
+    field: null,
+    direction: "ascending",
+  });
 
- const fetchPointsData = async (teamId: string) => {
+  // Sorting function
+  const sortData = (field: keyof Row) => {
+    setSortState((prevState) => {
+      const isAsc =
+        prevState.field === field && prevState.direction === "ascending";
+      return { field, direction: isAsc ? "descending" : "ascending" };
+    });
+  };
+
+  useEffect(() => {
+    if (!sortState.field) return; // Return early if sortState.field is null
+
+    const sortedData = [...pointsData].sort((a, b) => {
+      // TypeScript will now trust that sortState.field is not null
+      const valueA = a[sortState.field!];
+      const valueB = b[sortState.field!];
+      if (valueA < valueB) return sortState.direction === "ascending" ? -1 : 1;
+      if (valueA > valueB) return sortState.direction === "ascending" ? 1 : -1;
+      return 0;
+    });
+
+    setPointsData(sortedData);
+  }, [sortState, pointsData]);
+
+  const fetchPointsData = async (teamId: string) => {
     try {
       const response = await fetch(`/api/standings?teamId=${teamId}`);
       const data = await response.json();
@@ -36,11 +69,10 @@ export default function Page() {
       console.error("Error fetching points data for teamId:", teamId, error);
     }
   };
-
   useEffect(() => {
     const teamIds = ["1", "2", "3", "4", "5", "6", "7"];
-    teamIds.forEach(async (teamId) => {
-      await fetchPointsData(teamId);
+    teamIds.forEach((teamId) => {
+      fetchPointsData(teamId);
     });
   }, []);
 
@@ -49,15 +81,15 @@ export default function Page() {
       <AlertDismisible />
       <center>
         <h1>Flagrant Fowl Futbol Association</h1>
-        <h2> Current Standings</h2>
+        <h2>Current Standings</h2>
       </center>
 
       <table>
         <thead>
           <tr>
-            <th>Team</th>
+            <th onClick={() => sortData("team_name")}>Team</th>
             <th></th>
-            <th>Wins</th>
+            <th onClick={() => sortData("wins")}>Wins</th>
             <th>Draws</th>
             <th>Loses</th>
             <th>Goal Difference</th>
@@ -69,9 +101,7 @@ export default function Page() {
           {pointsData.map((row, index) => (
             <tr key={index}>
               <td>
-                <Link href={`/${row.team_name}`}>
-                  {row.team_name}
-                </Link>
+                <Link href={`/${row.team_name}`}>{row.team_name}</Link>
               </td>
               <td>
                 <Image
@@ -85,7 +115,7 @@ export default function Page() {
               <td>{row.draws}</td>
               <td>{row.losses}</td>
               <td>{row.goal_difference}</td>
-              <td>{row.wins * 3 + row.draws * 1}</td>
+              <td>{row.wins * 3 + row.draws}</td>
               <td>{row.total_matches}</td>
             </tr>
           ))}
