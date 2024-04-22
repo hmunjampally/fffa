@@ -21,7 +21,7 @@ interface SortState {
 export default function Page() {
   const [pointsData, setPointsData] = useState<Row[]>([]);
   const [sortState, setSortState] = useState<SortState>({
-    field: null,
+    field: undefined,
     direction: "ascending",
   });
 
